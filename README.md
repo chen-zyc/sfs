@@ -19,3 +19,29 @@ curl http://127.0.0.1:9000/hello
 ```
 
 指定服务地址： `sfs -addr=127.0.0.1:9000`
+
+dump 请求头： `sfs -dump=1`
+
+```shell
+==================== Incoming Request ====================
+GET /hello HTTP/1.1
+Host: localhost:9000
+Accept: */*
+User-Agent: curl/7.54.0
+==================== Dump Finished ====================
+```
+
+dump 请求头和请求体： `sfs -dump=2`
+
+```shell
+==================== Incoming Request ====================
+POST /hello HTTP/1.1
+Host: localhost:9000
+Accept: */*
+Content-Length: 12
+Content-Type: application/x-www-form-urlencoded
+User-Agent: curl/7.54.0
+
+request body
+==================== Dump Finished ====================
+```
