@@ -43,7 +43,7 @@ func main() {
 func dumpRequest(req *http.Request) {
 	fmt.Println("==================== Incoming Request ====================")
 	defer func() {
-		fmt.Println("==================== Dump Finished ====================")
+		fmt.Println("==================== Request Finished ====================")
 	}()
 	dumpData, err := httputil.DumpRequest(req, dumpReq == 2)
 	if err != nil {
