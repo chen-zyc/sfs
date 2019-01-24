@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"strconv"
+	"sync/atomic"
 	"time"
 )
 
@@ -14,12 +16,14 @@ var (
 	flagAddr    string // 服务地址
 	dumpReq     int    // 打印请求信息
 	blockHeader string // 阻塞时间的请求头
+	countHeader string
 )
 
 func init() {
 	flag.StringVar(&flagAddr, "addr", "127.0.0.1:9000", "the address of static file server")
 	flag.IntVar(&dumpReq, "dump", 0, "1: dump request header, 2: dump request header & body")
 	flag.StringVar(&blockHeader, "block-header", "", "request header representing blocking time")
+	flag.StringVar(&countHeader, "count-header", "", "response header containing counter values")
 }
 
 func main() {
@@ -58,12 +62,28 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 func wrapHandler(h http.Handler) http.Handler {
-	if dumpReq > 0 {
-		prevHandler := h
-		h = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			dumpRequest(req)
-			prevHandler.ServeHTTP(w, req)
+	wrapper := func(prevHandler http.Handler, before, after http.HandlerFunc) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if before != nil {
+				before(w, req)
+			}
+			if prevHandler != nil {
+				prevHandler.ServeHTTP(w, req)
+			}
+			if after != nil {
+				after(w, req)
+			}
 		})
+	}
+	if dumpReq > 0 {
+		h = wrapper(h, func(writer http.ResponseWriter, req *http.Request) {
+			dumpRequest(req)
+		}, nil)
+	}
+	if countHeader != "" {
+		h = wrapper(h, func(w http.ResponseWriter, req *http.Request) {
+			setCounterValueToResponse(w)
+		}, nil)
 	}
 	return h
 }
@@ -95,4 +115,11 @@ func blockRequest(req *http.Request) {
 	start := time.Now()
 	time.Sleep(blockDur)
 	fmt.Printf("Block request, start: %s, duration: %v\n", start, blockDur)
+}
+
+var counter uint64
+
+func setCounterValueToResponse(w http.ResponseWriter) {
+	v := atomic.AddUint64(&counter, 1)
+	w.Header().Set(countHeader, strconv.FormatUint(v, 10))
 }
